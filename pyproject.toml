@@ -45,6 +45,8 @@ dev = [
     "ruff>=0.5",
     "black>=24.4",
     "mypy>=1.10",
+    "bandit[toml]>=1.7",
+    "pip-audit>=2.7",
 ]
 
 [project.scripts]
@@ -117,3 +119,6 @@ exclude_lines = [
     "\\.\\.\\.",
 ]
 
+[tool.bandit]
+# Tests deliberately exercise weak inputs and assert on failure paths.
+exclude_dirs = ["tests"]

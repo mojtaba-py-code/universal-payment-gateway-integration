@@ -1,0 +1,6 @@
+# Normalise line endings: LF in the repo, auto on checkout.
+* text=auto eol=lf
+
+# Explicitly binary
+*.png binary
+*.sqlite3 binary

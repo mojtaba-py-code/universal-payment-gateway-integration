@@ -4,21 +4,29 @@ on:
   push:
     branches: [main, master]
   pull_request:
-    branches: [main, master]
+  # A CVE can be published against a pinned dependency long after the last
+  # commit, so the audit runs weekly whether or not anything changed.
+  schedule:
+    - cron: "0 6 * * 1"
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+# The pipeline only reads the checkout.  Any job needing more asks for it
+# explicitly at the job level.
+permissions:
+  contents: read
 
 jobs:
   quality:
     name: Lint, type-check & test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
@@ -42,7 +50,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-xml
           path: coverage.xml
@@ -52,6 +60,73 @@ jobs:
     runs-on: ubuntu-latest
     needs: quality
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build image
         run: docker build -t upgi:ci .
+
+  security:
+    name: Security scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project and security tooling
+        run: |
+          # setuptools is preinstalled on the runner and has had CVEs of its
+          # own; pip-audit sees the whole environment, so upgrade it here
+          # rather than let the runner's build tooling fail the audit.
+          python -m pip install --upgrade pip setuptools
+          pip install -e .
+          pip install bandit pip-audit
+
+      - name: Bandit (static analysis)
+        run: bandit -c pyproject.toml -r app --severity-level medium
+
+      # Audits the resolved dependency tree, so a CVE in a transitive package
+      # fails the build rather than waiting to be noticed.
+      - name: pip-audit (dependency CVEs)
+        run: pip-audit --skip-editable --progress-spinner off
+
+  secrets:
+    name: Committed-secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The scan reads every commit, not just the tip.
+          fetch-depth: 0
+
+      # A credential deleted in a later commit is still readable in the history
+      # and still has to be rotated, so the whole history is searched. Plain
+      # `git grep` keeps this free of third-party actions.
+      # Only high-signal, provider-specific shapes are matched. A generic
+      # "password = ..." rule drowns the job in the placeholder credentials
+      # that documentation and test fixtures are supposed to contain, and a
+      # scanner that always fails is a scanner nobody reads.
+      - name: Scan history for committed credentials
+        run: |
+          set -euo pipefail
+          patterns='-----BEGIN [A-Z ]*PRIVATE KEY-----'
+          patterns="$patterns|AKIA[0-9A-Z]{16}"
+          patterns="$patterns|ASIA[0-9A-Z]{16}"
+          patterns="$patterns|gh[pousr]_[A-Za-z0-9]{36}"
+          patterns="$patterns|github_pat_[A-Za-z0-9_]{40,}"
+          patterns="$patterns|xox[abprs]-[A-Za-z0-9]{10,}"
+          patterns="$patterns|AIza[0-9A-Za-z_-]{35}"
+          patterns="$patterns|sk_live_[0-9A-Za-z]{24,}"
+          patterns="$patterns|sk-[A-Za-z0-9]{32,}"
+          # -e is required: the pattern opens with "-----" and would otherwise
+          # be read as a command-line option.
+          if git grep -I -n -E -e "$patterns" $(git rev-list --all); then
+            echo "::error::possible credential in the git history — rotate it, then purge it"
+            exit 1
+          fi
+          echo "No committed credentials found in $(git rev-list --all | wc -l) commits."
