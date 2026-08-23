@@ -1,0 +1,119 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "upgi"
+version = "1.0.0"
+description = "Universal Payment Gateway Integration — a unified, provider-agnostic payment orchestration API."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Mojtaba Karimi" }]
+keywords = ["payments", "gateway", "fastapi", "stripe", "orchestration", "fintech"]
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "Framework :: FastAPI",
+    "Topic :: Office/Business :: Financial",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "email-validator>=2.1",
+    "SQLAlchemy>=2.0.30",
+    "alembic>=1.13",
+    "asyncpg>=0.29",
+    "aiosqlite>=0.20",
+    "httpx>=0.27",
+    "PyJWT>=2.8",
+    "argon2-cffi>=23.1",
+    "cryptography>=42.0",
+    "structlog>=24.1",
+    "prometheus-client>=0.20",
+    "redis>=5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "ruff>=0.5",
+    "black>=24.4",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+upgi = "app.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mojtaba-py-code/universal-payment-gateway-integration"
+Documentation = "https://github.com/mojtaba-py-code/universal-payment-gateway-integration/tree/main/docs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+# ------------------------------------------------------------------ tooling ---
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM", "ASYNC", "S", "RUF"]
+ignore = [
+    "S101",   # asserts are fine in tests
+    "B008",   # FastAPI Depends() in defaults is the framework idiom
+    "UP037",  # quoted annotations are required for SQLAlchemy ORM forward refs
+    "UP046",  # keep classic typing.Generic for Pydantic/SQLAlchemy compatibility
+    "UP047",  # keep classic Generic function signatures
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106", "S311"]
+"alembic/*" = ["E501", "F401"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+no_implicit_optional = true
+check_untyped_defs = true
+ignore_missing_imports = true
+exclude = ["alembic/", "tests/"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-ra -q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+# SQLAlchemy's async layer resumes coroutines inside greenlets; without this
+# coverage silently under-reports any line that runs after an awaited DB call.
+concurrency = ["thread", "greenlet"]
+omit = ["app/cli.py", "app/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+

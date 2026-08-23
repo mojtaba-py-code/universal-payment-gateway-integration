@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------------------
+# Full local stack: API + PostgreSQL + Redis + NGINX reverse proxy.
+# ---------------------------------------------------------------------------
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      UPGI_ENVIRONMENT: staging
+      UPGI_DATABASE_URL: postgresql+asyncpg://upgi:upgi@db:5432/upgi
+      UPGI_REDIS_URL: redis://redis:6379/0
+      UPGI_USE_REDIS: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    expose:
+      - "8000"
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: upgi
+      POSTGRES_PASSWORD: upgi
+      POSTGRES_DB: upgi
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U upgi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+    volumes:
+      - ./deployment/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  pgdata:
