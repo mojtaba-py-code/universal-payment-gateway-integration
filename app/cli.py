@@ -31,7 +31,15 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     serve = sub.add_parser("serve", help="Run the ASGI server")
-    serve.add_argument("--host", default="0.0.0.0")  # noqa: S104 - container-friendly default
+    serve.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help=(
+            "Interface to bind. Loopback by default: this process fronts "
+            "encrypted provider credentials, so exposing it to the network is "
+            "opt-in. The container image passes --host 0.0.0.0 explicitly."
+        ),
+    )
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--reload", action="store_true")
 
