@@ -1,0 +1,28 @@
+# Automated dependency updates. This service stores envelope-encrypted provider
+# credentials and verifies signed webhooks, so a CVE in the crypto or HTTP
+# stack is reachable from traffic the internet can send it.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels: ["dependencies"]
+    groups:
+      # One PR for routine bumps keeps the queue reviewable; security updates
+      # still arrive on their own.
+      python-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels: ["dependencies", "ci"]
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels: ["dependencies", "docker"]
