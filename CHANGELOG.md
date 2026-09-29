@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project adheres to
 Semantic Versioning.
 
+## [Unreleased]
+
+### Fixed
+- Depend on `SQLAlchemy[asyncio]` rather than bare `SQLAlchemy`. SQLAlchemy 2.1
+  no longer installs `greenlet` by default, so a fresh install resolved 2.1 without
+  it and the async engine raised `ImportError` on first use.
+
+### Changed
+- The weekly CI run moved from 06:00 to 06:17 UTC on Mondays. GitHub can delay or
+  drop scheduled runs at the top of the hour under load.
+
 ## [1.0.0] - 2026-08-06
 
 ### Added

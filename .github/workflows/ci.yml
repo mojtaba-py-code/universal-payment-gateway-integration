@@ -7,7 +7,7 @@ on:
   # A CVE can be published against a pinned dependency long after the last
   # commit, so the audit runs weekly whether or not anything changed.
   schedule:
-    - cron: "0 6 * * 1"
+    - cron: "17 6 * * 1"
 
 concurrency:
   group: ci-${{ github.ref }}
