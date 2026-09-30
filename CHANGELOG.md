@@ -6,6 +6,11 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+### Security
+- Require PyJWT >= 2.14.0. PyJWT 2.13.0 has ten published advisories, among them
+  algorithm confusion and acceptance of malformed signature segments; a
+  range that still allowed it could resolve to it.
+
 ### Fixed
 - Depend on `SQLAlchemy[asyncio]` rather than bare `SQLAlchemy`. SQLAlchemy 2.1
   no longer installs `greenlet` by default, so a fresh install resolved 2.1 without
